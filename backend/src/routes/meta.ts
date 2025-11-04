@@ -49,6 +49,13 @@ async function updateAgentMetaData(agentId: string, endpoint: string, data: any)
   try {
     const agentUrl = `${config.agent.baseUrl}/meta/${endpoint}`;
     const response = await axios.put(agentUrl, data, { timeout: 10000 });
+    
+    // Check for application-level errors in the response
+    if (response.data && response.data.status === 'error') {
+      const errorMessage = response.data.message || response.data.error_details || 'Agent returned an error';
+      throw new Error(errorMessage);
+    }
+    
     return response.data;
   } catch (error: any) {
     if (error.code === 'ECONNABORTED') {
@@ -58,7 +65,16 @@ async function updateAgentMetaData(agentId: string, endpoint: string, data: any)
       throw new Error('Cannot connect to agent. Make sure the agent is running on ' + config.agent.baseUrl);
     }
     if (error.response) {
+      // If the agent returned an error response, try to extract the message
+      if (error.response.data && error.response.data.status === 'error') {
+        const errorMessage = error.response.data.message || error.response.data.error_details || 'Agent returned an error';
+        throw new Error(errorMessage);
+      }
       throw new Error(`Agent returned error: ${error.response.status} ${error.response.statusText}`);
+    }
+    // If error.message already exists (from our check above), throw it
+    if (error.message) {
+      throw error;
     }
     throw new Error('Agent returned an error');
   }

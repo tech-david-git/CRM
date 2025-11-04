@@ -10,6 +10,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
 import httpx
+import requests
 from fastapi import FastAPI
 from pydantic import BaseModel
 
@@ -557,10 +558,26 @@ def update_adset_status(adset_id: str, status_data: AdSetStatusUpdate):
         }
         
     except Exception as e:
+        error_message = str(e)
+        error_details = str(e)
+        
+        # Extract more details from requests HTTPError
+        if isinstance(e, requests.exceptions.HTTPError) and hasattr(e, 'response'):
+            try:
+                error_response = e.response.json()
+                if 'error' in error_response:
+                    error_info = error_response['error']
+                    error_message = error_info.get('message', error_message)
+                    error_details = f"Meta API Error {error_info.get('code', '')}: {error_info.get('message', '')}"
+                    if 'error_subcode' in error_info:
+                        error_details += f" (Subcode: {error_info['error_subcode']})"
+            except:
+                error_details = e.response.text if hasattr(e.response, 'text') else error_details
+        
         return {
             "status": "error", 
-            "message": f"Failed to update ad set {adset_id} status: {str(e)}",
-            "error_details": str(e)
+            "message": f"Failed to update ad set {adset_id} status: {error_message}",
+            "error_details": error_details
         }
 
 @app.post("/meta/campaigns")
