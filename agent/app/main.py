@@ -11,6 +11,7 @@ from watchdog.events import FileSystemEventHandler
 
 import httpx
 from fastapi import FastAPI
+from pydantic import BaseModel
 
 # Handle imports for both standalone and module execution
 try:
@@ -526,15 +527,18 @@ def get_adset_ads(adset_id: str):
             "error_details": str(e)
         }
 
+class AdSetStatusUpdate(BaseModel):
+    status: str
+
 @app.put("/meta/adsets/{adset_id}/status")
-def update_adset_status(adset_id: str, status_data: Dict[str, Any]):
+def update_adset_status(adset_id: str, status_data: AdSetStatusUpdate):
     """Update the status of an ad set"""
     try:
         # Test connection first
         if not meta_client.test_connection():
             return {"status": "error", "message": "Meta API connection failed"}
         
-        status = status_data.get("status")
+        status = status_data.status
         if not status:
             return {"status": "error", "message": "Status is required"}
         
