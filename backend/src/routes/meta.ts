@@ -35,6 +35,35 @@ async function getAgentMetaData(agentId: string, endpoint: string): Promise<any>
   }
 }
 
+async function updateAgentMetaData(agentId: string, endpoint: string, data: any): Promise<any> {
+  const agent = await Agent.findOne({ id: agentId });
+  
+  if (!agent) {
+    throw new Error('Agent not found');
+  }
+  
+  if (agent.status !== 'ONLINE') {
+    throw new Error('Agent is offline. Meta data is only available when agent is connected.');
+  }
+
+  try {
+    const agentUrl = `${config.agent.baseUrl}/meta/${endpoint}`;
+    const response = await axios.put(agentUrl, data, { timeout: 10000 });
+    return response.data;
+  } catch (error: any) {
+    if (error.code === 'ECONNABORTED') {
+      throw new Error('Agent request timed out');
+    }
+    if (error.code === 'ECONNREFUSED') {
+      throw new Error('Cannot connect to agent. Make sure the agent is running on ' + config.agent.baseUrl);
+    }
+    if (error.response) {
+      throw new Error(`Agent returned error: ${error.response.status} ${error.response.statusText}`);
+    }
+    throw new Error('Agent returned an error');
+  }
+}
+
 // Test Meta connection
 router.get('/test', authenticate, requireRoles('USER', 'ADMIN'), async (req: AuthRequest, res: Response) => {
   try {
@@ -201,6 +230,44 @@ router.get('/adsets/:adset_id/ads', authenticate, requireRoles('USER', 'ADMIN'),
       return res.status(400).json({ detail: 'agent_id is required' });
     }
     const data = await getAgentMetaData(agent_id, `adsets/${adset_id}/ads`);
+    res.json(data);
+  } catch (error: any) {
+    if (error.message === 'Agent not found') {
+      return res.status(404).json({ detail: error.message });
+    }
+    if (error.message.includes('offline')) {
+      return res.status(503).json({ detail: error.message });
+    }
+    if (error.message.includes('timeout')) {
+      return res.status(504).json({ detail: error.message });
+    }
+    if (error.message.includes('connect')) {
+      return res.status(503).json({ detail: error.message });
+    }
+    return res.status(502).json({ detail: error.message });
+  }
+});
+
+// Update ad set status
+router.put('/adsets/:adset_id/status', authenticate, requireRoles('USER', 'ADMIN'), async (req: AuthRequest, res: Response) => {
+  try {
+    const { agent_id } = req.query;
+    const { adset_id } = req.params;
+    const { status } = req.body;
+    
+    if (!agent_id || typeof agent_id !== 'string') {
+      return res.status(400).json({ detail: 'agent_id is required' });
+    }
+    
+    if (!status || typeof status !== 'string') {
+      return res.status(400).json({ detail: 'status is required' });
+    }
+    
+    if (!['ACTIVE', 'PAUSED', 'ARCHIVED'].includes(status)) {
+      return res.status(400).json({ detail: 'Invalid status. Must be ACTIVE, PAUSED, or ARCHIVED' });
+    }
+    
+    const data = await updateAgentMetaData(agent_id, `adsets/${adset_id}/status`, { status });
     res.json(data);
   } catch (error: any) {
     if (error.message === 'Agent not found') {

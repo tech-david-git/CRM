@@ -144,6 +144,14 @@ class MetaAPIClient:
         
         return campaigns
 
+    def update_ad_set_status(self, ad_set_id: str, status: str) -> Dict[str, Any]:
+        """Update the status of an ad set (ACTIVE, PAUSED, ARCHIVED)"""
+        endpoint = ad_set_id
+        data = {
+            "status": status
+        }
+        return self._make_request(endpoint, method="PUT", data=data)
+
     def test_connection(self) -> bool:
         """Test the connection to Meta's API"""
         try:

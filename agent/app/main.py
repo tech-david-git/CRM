@@ -526,6 +526,39 @@ def get_adset_ads(adset_id: str):
             "error_details": str(e)
         }
 
+@app.put("/meta/adsets/{adset_id}/status")
+def update_adset_status(adset_id: str, status_data: Dict[str, Any]):
+    """Update the status of an ad set"""
+    try:
+        # Test connection first
+        if not meta_client.test_connection():
+            return {"status": "error", "message": "Meta API connection failed"}
+        
+        status = status_data.get("status")
+        if not status:
+            return {"status": "error", "message": "Status is required"}
+        
+        if status not in ["ACTIVE", "PAUSED", "ARCHIVED"]:
+            return {"status": "error", "message": "Invalid status. Must be ACTIVE, PAUSED, or ARCHIVED"}
+        
+        # Update the ad set status
+        result = meta_client.update_ad_set_status(adset_id, status)
+        
+        return {
+            "status": "success",
+            "message": f"Ad set {adset_id} status updated to {status}",
+            "adset_id": adset_id,
+            "new_status": status,
+            "data": result
+        }
+        
+    except Exception as e:
+        return {
+            "status": "error", 
+            "message": f"Failed to update ad set {adset_id} status: {str(e)}",
+            "error_details": str(e)
+        }
+
 @app.post("/meta/campaigns")
 def create_meta_campaign(campaign_data: Dict[str, Any]):
     """Create a new Meta campaign"""
