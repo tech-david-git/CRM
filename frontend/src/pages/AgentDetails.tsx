@@ -178,7 +178,10 @@ const AgentDetails: React.FC = () => {
   };
 
   const handleAdSetStatusToggle = async (adset: MetaAdSet, newStatus: 'ACTIVE' | 'PAUSED') => {
-    if (!agent?.id) return;
+    if (!agent?.id) {
+      alert('Agent ID is missing');
+      return;
+    }
     
     const oldStatus = adset.status;
     setUpdatingAdSets(prev => new Set(prev).add(adset.id));
@@ -194,17 +197,32 @@ const AgentDetails: React.FC = () => {
     }
     
     try {
-      await apiService.updateAdSetStatus(agent.id, adset.id, newStatus);
+      console.log('Updating ad set status:', { agentId: agent.id, adsetId: adset.id, newStatus });
+      const updateResponse = await apiService.updateAdSetStatus(agent.id, adset.id, newStatus);
+      console.log('Update response:', updateResponse);
+      
       // Refresh ad sets to get updated data
       if (selectedCampaign) {
-        const response = await apiService.getCampaignAdSets(agent.id, selectedCampaign.id);
-        setCampaignAdSets(prev => ({
-          ...prev,
-          [selectedCampaign.id]: response.data.ad_sets || []
-        }));
+        try {
+          const response = await apiService.getCampaignAdSets(agent.id, selectedCampaign.id);
+          setCampaignAdSets(prev => ({
+            ...prev,
+            [selectedCampaign.id]: response.data.ad_sets || []
+          }));
+        } catch (refreshErr: any) {
+          console.error('Failed to refresh ad sets after update:', refreshErr);
+          // Update succeeded but refresh failed - keep the optimistic update
+        }
       }
     } catch (err: any) {
       console.error('Failed to update ad set status:', err);
+      console.error('Error details:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status,
+        statusText: err.response?.statusText
+      });
+      
       // Revert optimistic update on error
       if (selectedCampaign) {
         setCampaignAdSets(prev => ({
@@ -214,7 +232,9 @@ const AgentDetails: React.FC = () => {
           )
         }));
       }
-      alert(err.response?.data?.detail || 'Failed to update ad set status');
+      
+      const errorMessage = err.response?.data?.detail || err.message || 'Failed to update ad set status';
+      alert(`Error: ${errorMessage}`);
     } finally {
       setUpdatingAdSets(prev => {
         const newSet = new Set(prev);

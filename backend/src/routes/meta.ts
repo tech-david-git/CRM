@@ -255,6 +255,8 @@ router.put('/adsets/:adset_id/status', authenticate, requireRoles('USER', 'ADMIN
     const { adset_id } = req.params;
     const { status } = req.body;
     
+    console.log('Update ad set status request:', { agent_id, adset_id, status, body: req.body });
+    
     if (!agent_id || typeof agent_id !== 'string') {
       return res.status(400).json({ detail: 'agent_id is required' });
     }
@@ -268,8 +270,17 @@ router.put('/adsets/:adset_id/status', authenticate, requireRoles('USER', 'ADMIN
     }
     
     const data = await updateAgentMetaData(agent_id, `adsets/${adset_id}/status`, { status });
+    console.log('Update ad set status response:', data);
     res.json(data);
   } catch (error: any) {
+    console.error('Update ad set status error:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      response: error.response?.data,
+      status: error.response?.status
+    });
+    
     if (error.message === 'Agent not found') {
       return res.status(404).json({ detail: error.message });
     }
@@ -282,7 +293,7 @@ router.put('/adsets/:adset_id/status', authenticate, requireRoles('USER', 'ADMIN
     if (error.message.includes('connect')) {
       return res.status(503).json({ detail: error.message });
     }
-    return res.status(502).json({ detail: error.message });
+    return res.status(502).json({ detail: error.message || 'Failed to update ad set status' });
   }
 });
 
