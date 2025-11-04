@@ -10,7 +10,9 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
 import httpx
+import requests
 from fastapi import FastAPI
+from pydantic import BaseModel
 
 # Handle imports for both standalone and module execution
 try:
@@ -524,6 +526,58 @@ def get_adset_ads(adset_id: str):
             "status": "error", 
             "message": f"Failed to get ads for ad set {adset_id}: {str(e)}",
             "error_details": str(e)
+        }
+
+class AdSetStatusUpdate(BaseModel):
+    status: str
+
+@app.put("/meta/adsets/{adset_id}/status")
+def update_adset_status(adset_id: str, status_data: AdSetStatusUpdate):
+    """Update the status of an ad set"""
+    try:
+        # Test connection first
+        if not meta_client.test_connection():
+            return {"status": "error", "message": "Meta API connection failed"}
+        
+        status = status_data.status
+        if not status:
+            return {"status": "error", "message": "Status is required"}
+        
+        if status not in ["ACTIVE", "PAUSED", "ARCHIVED"]:
+            return {"status": "error", "message": "Invalid status. Must be ACTIVE, PAUSED, or ARCHIVED"}
+        
+        # Update the ad set status
+        result = meta_client.update_ad_set_status(adset_id, status)
+        
+        return {
+            "status": "success",
+            "message": f"Ad set {adset_id} status updated to {status}",
+            "adset_id": adset_id,
+            "new_status": status,
+            "data": result
+        }
+        
+    except Exception as e:
+        error_message = str(e)
+        error_details = str(e)
+        
+        # Extract more details from requests HTTPError
+        if isinstance(e, requests.exceptions.HTTPError) and hasattr(e, 'response'):
+            try:
+                error_response = e.response.json()
+                if 'error' in error_response:
+                    error_info = error_response['error']
+                    error_message = error_info.get('message', error_message)
+                    error_details = f"Meta API Error {error_info.get('code', '')}: {error_info.get('message', '')}"
+                    if 'error_subcode' in error_info:
+                        error_details += f" (Subcode: {error_info['error_subcode']})"
+            except:
+                error_details = e.response.text if hasattr(e.response, 'text') else error_details
+        
+        return {
+            "status": "error", 
+            "message": f"Failed to update ad set {adset_id} status: {error_message}",
+            "error_details": error_details
         }
 
 @app.post("/meta/campaigns")

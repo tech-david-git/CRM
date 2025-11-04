@@ -39,6 +39,7 @@ const AgentDetails: React.FC = () => {
   const [optimizationData, setOptimizationData] = useState<any>(null);
   const [loadingOptimization, setLoadingOptimization] = useState(false);
   const [targetCostPerResult, setTargetCostPerResult] = useState(50);
+  const [updatingAdSets, setUpdatingAdSets] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (agentId) {
@@ -174,6 +175,73 @@ const AgentDetails: React.FC = () => {
   const handleBackToAdSets = () => {
     setCurrentView('adsets');
     setSelectedAdSet(null);
+  };
+
+  const handleAdSetStatusToggle = async (adset: MetaAdSet, newStatus: 'ACTIVE' | 'PAUSED') => {
+    if (!agent?.id) {
+      alert('Agent ID is missing');
+      return;
+    }
+    
+    const oldStatus = adset.status;
+    setUpdatingAdSets(prev => new Set(prev).add(adset.id));
+    
+    // Optimistically update the UI
+    if (selectedCampaign) {
+      setCampaignAdSets(prev => ({
+        ...prev,
+        [selectedCampaign.id]: (prev[selectedCampaign.id] || []).map(a => 
+          a.id === adset.id ? { ...a, status: newStatus } : a
+        )
+      }));
+    }
+    
+    try {
+      console.log('Updating ad set status:', { agentId: agent.id, adsetId: adset.id, newStatus });
+      const updateResponse = await apiService.updateAdSetStatus(agent.id, adset.id, newStatus);
+      console.log('Update response:', updateResponse);
+      
+      // Refresh ad sets to get updated data
+      if (selectedCampaign) {
+        try {
+          const response = await apiService.getCampaignAdSets(agent.id, selectedCampaign.id);
+          setCampaignAdSets(prev => ({
+            ...prev,
+            [selectedCampaign.id]: response.data.ad_sets || []
+          }));
+        } catch (refreshErr: any) {
+          console.error('Failed to refresh ad sets after update:', refreshErr);
+          // Update succeeded but refresh failed - keep the optimistic update
+        }
+      }
+    } catch (err: any) {
+      console.error('Failed to update ad set status:', err);
+      console.error('Error details:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status,
+        statusText: err.response?.statusText
+      });
+      
+      // Revert optimistic update on error
+      if (selectedCampaign) {
+        setCampaignAdSets(prev => ({
+          ...prev,
+          [selectedCampaign.id]: (prev[selectedCampaign.id] || []).map(a => 
+            a.id === adset.id ? { ...a, status: oldStatus } : a
+          )
+        }));
+      }
+      
+      const errorMessage = err.response?.data?.detail || err.message || 'Failed to update ad set status';
+      alert(`Error: ${errorMessage}`);
+    } finally {
+      setUpdatingAdSets(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(adset.id);
+        return newSet;
+      });
+    }
   };
 
   const fetchOptimizationData = async (campaignId: string) => {
@@ -668,13 +736,38 @@ const AgentDetails: React.FC = () => {
                           </button>
                         </td>
                         <td className="py-3 px-4">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            adset.status === 'ACTIVE'
-                              ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400'
-                              : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
-                          }`}>
-                            {adset.status}
-                          </span>
+                          <label className={`relative inline-flex items-center ${updatingAdSets.has(adset.id) ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+                            <input
+                              type="checkbox"
+                              checked={adset.status === 'ACTIVE'}
+                              onChange={(e) => {
+                                if (!updatingAdSets.has(adset.id)) {
+                                  const newStatus = e.target.checked ? 'ACTIVE' : 'PAUSED';
+                                  handleAdSetStatusToggle(adset, newStatus);
+                                }
+                              }}
+                              disabled={updatingAdSets.has(adset.id)}
+                              className="sr-only"
+                            />
+                            <div className={`relative w-11 h-6 rounded-full transition-colors duration-200 ease-in-out ${
+                              adset.status === 'ACTIVE'
+                                ? 'bg-green-500'
+                                : 'bg-gray-300 dark:bg-gray-600'
+                            } ${updatingAdSets.has(adset.id) ? 'opacity-50' : ''}`}>
+                              <div className={`absolute top-0.5 left-0.5 bg-white rounded-full h-5 w-5 shadow-sm transition-transform duration-200 ease-in-out ${
+                                adset.status === 'ACTIVE' ? 'translate-x-5' : 'translate-x-0'
+                              }`}></div>
+                            </div>
+                            <span className={`ml-3 text-sm font-medium ${
+                              updatingAdSets.has(adset.id)
+                                ? 'text-gray-400 dark:text-gray-500'
+                                : adset.status === 'ACTIVE'
+                                  ? 'text-green-600 dark:text-green-400'
+                                  : 'text-gray-600 dark:text-gray-400'
+                            }`}>
+                              {updatingAdSets.has(adset.id) ? 'Updating...' : adset.status === 'ACTIVE' ? 'Active' : 'Paused'}
+                            </span>
+                          </label>
                         </td>
                         <td className="py-3 px-4">
                           <div className="font-medium text-gray-900 dark:text-white">

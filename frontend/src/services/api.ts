@@ -156,6 +156,10 @@ class ApiService {
     return this.api.get(`/meta/adsets/${adsetId}/ads?agent_id=${agentId}`);
   }
 
+  async updateAdSetStatus(agentId: string, adsetId: string, status: 'ACTIVE' | 'PAUSED' | 'ARCHIVED'): Promise<{ data: any }> {
+    return this.api.put(`/meta/adsets/${adsetId}/status?agent_id=${agentId}`, { status });
+  }
+
   async getCampaignOptimization(agentId: string, campaignId: string): Promise<{ data: any }> {
     return this.api.get(`/meta/optimization/${campaignId}?agent_id=${agentId}`);
   }
