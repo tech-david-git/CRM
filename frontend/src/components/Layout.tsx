@@ -20,7 +20,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { text: 'Dashboard', path: '/dashboard' },
     { text: 'Agents', path: '/agents' },
     { text: 'Users', path: '/users' },
-    { text: 'Automated Rules', path: '/automated-rules' },
   ];
 
   const handleLogout = () => {

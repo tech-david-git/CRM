@@ -177,7 +177,21 @@ class ApiService {
     return this.api.get(`/api/automated-rules/${ruleId}`);
   }
 
-  async updateAutomatedRule(ruleId: string, updates: { enabled?: boolean }): Promise<{ data: any }> {
+  async createAutomatedRule(rule: {
+    name: string;
+    scope: string;
+    action: string;
+    conditions: {
+      lifetime_impressions_threshold?: number;
+      cost_per_result_threshold?: number;
+      time_range_months?: number;
+    };
+    schedule_interval_minutes: number;
+  }): Promise<{ data: any }> {
+    return this.api.post('/api/automated-rules/', rule);
+  }
+
+  async updateAutomatedRule(ruleId: string, updates: { enabled?: boolean; conditions?: any; schedule_interval_minutes?: number }): Promise<{ data: any }> {
     return this.api.patch(`/api/automated-rules/${ruleId}`, updates);
   }
 }
