@@ -225,12 +225,15 @@ export async function executeAutomatedRule(rule: any): Promise<{
   checked: number;
   paused: number;
   errors: number;
+  unchanged: number;
   pausedAds: Array<{ adId: string; adName: string; reason: string; metrics: AdMetrics }>;
 }> {
+  const startTime = Date.now();
   const result = {
     checked: 0,
     paused: 0,
     errors: 0,
+    unchanged: 0,
     pausedAds: [] as Array<{ adId: string; adName: string; reason: string; metrics: AdMetrics }>,
   };
 
@@ -269,6 +272,9 @@ export async function executeAutomatedRule(rule: any): Promise<{
             result.errors++;
             console.error(`[AutomatedRule] Failed to pause ad ${ad.id}`);
           }
+        } else {
+          // Ad was checked but didn't meet conditions
+          result.unchanged++;
         }
       } catch (error: any) {
         result.errors++;
@@ -278,16 +284,55 @@ export async function executeAutomatedRule(rule: any): Promise<{
       }
     }
 
-    // Update last_run_at
+    const executionTime = Date.now() - startTime;
+
+    // Update last_run_at and last_execution_result
     rule.last_run_at = new Date();
+    rule.last_execution_result = {
+      checked: result.checked,
+      paused: result.paused,
+      errors: result.errors,
+      unchanged: result.unchanged,
+      execution_time_ms: executionTime,
+      paused_ads: result.pausedAds.map(ad => ({
+        adId: ad.adId,
+        adName: ad.adName,
+        reason: ad.reason,
+        metrics: {
+          lifetimeImpressions: ad.metrics.lifetimeImpressions,
+          costPerResult: ad.metrics.costPerResult,
+        },
+      })),
+    };
     await rule.save();
 
     console.log(
-      `[AutomatedRule] Rule execution completed. Checked: ${result.checked}, Paused: ${result.paused}, Errors: ${result.errors}`
+      `[AutomatedRule] Rule execution completed. Checked: ${result.checked}, Paused: ${result.paused}, Unchanged: ${result.unchanged}, Errors: ${result.errors}, Time: ${executionTime}ms`
     );
   } catch (error: any) {
     console.error(`[AutomatedRule] Fatal error executing rule:`, error);
     result.errors++;
+    
+    // Still save the partial results
+    const executionTime = Date.now() - startTime;
+    rule.last_run_at = new Date();
+    rule.last_execution_result = {
+      checked: result.checked,
+      paused: result.paused,
+      errors: result.errors,
+      unchanged: result.unchanged,
+      execution_time_ms: executionTime,
+      paused_ads: result.pausedAds.map(ad => ({
+        adId: ad.adId,
+        adName: ad.adName,
+        reason: ad.reason,
+        metrics: {
+          lifetimeImpressions: ad.metrics.lifetimeImpressions,
+          costPerResult: ad.metrics.costPerResult,
+        },
+      })),
+    };
+    await rule.save();
   }
 
   return result;

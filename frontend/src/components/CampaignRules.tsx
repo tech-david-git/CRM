@@ -14,6 +14,22 @@ interface AutomatedRule {
   };
   schedule_interval_minutes: number;
   last_run_at?: string;
+  last_execution_result?: {
+    checked: number;
+    paused: number;
+    errors: number;
+    unchanged: number;
+    execution_time_ms: number;
+    paused_ads?: Array<{
+      adId: string;
+      adName: string;
+      reason: string;
+      metrics: {
+        lifetimeImpressions: number;
+        costPerResult: number;
+      };
+    }>;
+  };
   created_at: string;
   updated_at: string;
 }
@@ -344,6 +360,85 @@ const CampaignRules: React.FC<{ agentId: string; campaigns: any[] }> = () => {
                         </div>
                       )}
                     </div>
+
+                    {/* Execution Results */}
+                    {rule.enabled && rule.last_execution_result && (
+                      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+                          Last Execution Results
+                        </h4>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+                            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                              {rule.last_execution_result.checked}
+                            </div>
+                            <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                              Ads Checked
+                            </div>
+                          </div>
+                          <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-lg">
+                            <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+                              {rule.last_execution_result.paused}
+                            </div>
+                            <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                              Ads Paused
+                            </div>
+                          </div>
+                          <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg">
+                            <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                              {rule.last_execution_result.unchanged}
+                            </div>
+                            <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                              Unchanged
+                            </div>
+                          </div>
+                          <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg">
+                            <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
+                              {rule.last_execution_result.errors}
+                            </div>
+                            <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                              Errors
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {rule.last_execution_result.execution_time_ms && (
+                          <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                            Execution time: {(rule.last_execution_result.execution_time_ms / 1000).toFixed(2)}s
+                          </div>
+                        )}
+
+                        {/* Show paused ads details if any */}
+                        {rule.last_execution_result.paused_ads && rule.last_execution_result.paused_ads.length > 0 && (
+                          <div className="mt-4">
+                            <details className="cursor-pointer">
+                              <summary className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100">
+                                View Paused Ads ({rule.last_execution_result.paused_ads.length})
+                              </summary>
+                              <div className="mt-2 space-y-2 max-h-60 overflow-y-auto">
+                                {rule.last_execution_result.paused_ads.map((pausedAd, idx) => (
+                                  <div
+                                    key={idx}
+                                    className="p-2 bg-gray-50 dark:bg-dark-lighter rounded text-xs"
+                                  >
+                                    <div className="font-medium text-gray-900 dark:text-white">
+                                      {pausedAd.adName}
+                                    </div>
+                                    <div className="text-gray-600 dark:text-gray-400 mt-1">
+                                      {pausedAd.reason}
+                                    </div>
+                                    <div className="text-gray-500 dark:text-gray-500 mt-1">
+                                      Impressions: {pausedAd.metrics.lifetimeImpressions.toLocaleString()} | 
+                                      Cost/Result: {pausedAd.metrics.costPerResult.toFixed(2)} EUR
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </details>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div className="ml-4">

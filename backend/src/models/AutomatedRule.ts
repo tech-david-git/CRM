@@ -13,6 +13,22 @@ export interface IAutomatedRule extends Document {
   };
   schedule_interval_minutes: number;
   last_run_at?: Date;
+  last_execution_result?: {
+    checked: number;
+    paused: number;
+    errors: number;
+    unchanged: number; // ads that were checked but didn't meet conditions
+    execution_time_ms: number;
+    paused_ads?: Array<{
+      adId: string;
+      adName: string;
+      reason: string;
+      metrics: {
+        lifetimeImpressions: number;
+        costPerResult: number;
+      };
+    }>;
+  };
   created_at: Date;
   updated_at: Date;
 }
@@ -30,6 +46,22 @@ const AutomatedRuleSchema = new Schema<IAutomatedRule>({
   },
   schedule_interval_minutes: { type: Number, required: true, default: 15 },
   last_run_at: { type: Date },
+  last_execution_result: {
+    checked: { type: Number },
+    paused: { type: Number },
+    errors: { type: Number },
+    unchanged: { type: Number },
+    execution_time_ms: { type: Number },
+    paused_ads: [{
+      adId: { type: String },
+      adName: { type: String },
+      reason: { type: String },
+      metrics: {
+        lifetimeImpressions: { type: Number },
+        costPerResult: { type: Number },
+      },
+    }],
+  },
   created_at: { type: Date, default: Date.now, required: true },
   updated_at: { type: Date, default: Date.now, required: true },
 });
