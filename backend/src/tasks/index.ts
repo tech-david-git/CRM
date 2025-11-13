@@ -1,5 +1,7 @@
 import cron from 'node-cron';
-import { MetricSnapshot, DailyMetric, Agent } from '../models';
+import { MetricSnapshot, DailyMetric, Agent, AutomatedRule } from '../models';
+import { executeAutomatedRule } from '../services/ruleEvaluation';
+import { generateId } from '../utils';
 
 const RETENTION_DAYS = 90;
 
@@ -106,6 +108,78 @@ async function markOfflineAgents() {
   }
 }
 
+/**
+ * Initialize the default "Pause Ad" rule if it doesn't exist
+ */
+async function initializeDefaultRule() {
+  try {
+    const existingRule = await AutomatedRule.findOne({ name: 'Pause Ad' });
+    
+    if (!existingRule) {
+      const rule = new AutomatedRule({
+        id: generateId('rule'),
+        name: 'Pause Ad',
+        enabled: false, // Start disabled by default
+        scope: 'ALL_ACTIVE_ADS',
+        action: 'PAUSE_AD',
+        conditions: {
+          lifetime_impressions_threshold: 8000,
+          cost_per_result_threshold: 30000, // 300 EUR in cents
+          time_range_months: 37,
+        },
+        schedule_interval_minutes: 15,
+      });
+      
+      await rule.save();
+      console.log('✅ Created default "Pause Ad" automated rule');
+    }
+  } catch (error) {
+    console.error('Error initializing default rule:', error);
+  }
+}
+
+/**
+ * Execute all enabled automated rules
+ */
+async function runAutomatedRules() {
+  try {
+    const enabledRules = await AutomatedRule.find({ enabled: true });
+    
+    if (enabledRules.length === 0) {
+      return;
+    }
+    
+    console.log(`[AutomatedRules] Running ${enabledRules.length} enabled rule(s)`);
+    
+    for (const rule of enabledRules) {
+      try {
+        // Check if enough time has passed since last run
+        const now = new Date();
+        const lastRun = rule.last_run_at ? new Date(rule.last_run_at) : new Date(0);
+        const minutesSinceLastRun = (now.getTime() - lastRun.getTime()) / (1000 * 60);
+        
+        if (minutesSinceLastRun < rule.schedule_interval_minutes) {
+          // Skip this run, not enough time has passed
+          continue;
+        }
+        
+        await executeAutomatedRule(rule);
+      } catch (error: any) {
+        console.error(`[AutomatedRules] Error executing rule ${rule.name}:`, error.message);
+        // Continue with next rule
+        continue;
+      }
+    }
+  } catch (error) {
+    console.error('[AutomatedRules] Error running automated rules:', error);
+  }
+}
+
+export async function initializeBackgroundTasks() {
+  // Initialize default rule
+  await initializeDefaultRule();
+}
+
 export function startBackgroundTasks() {
   // Retention loop - run hourly
   cron.schedule('0 * * * *', async () => {
@@ -124,6 +198,11 @@ export function startBackgroundTasks() {
   // Agent status loop - run every 30 seconds
   cron.schedule('*/30 * * * * *', async () => {
     await markOfflineAgents();
+  });
+
+  // Automated rules - run every 5 minutes (rules will check their own intervals)
+  cron.schedule('*/5 * * * *', async () => {
+    await runAutomatedRules();
   });
 
   console.log('✅ Background tasks started');

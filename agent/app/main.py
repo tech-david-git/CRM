@@ -531,6 +531,9 @@ def get_adset_ads(adset_id: str):
 class AdSetStatusUpdate(BaseModel):
     status: str
 
+class AdStatusUpdate(BaseModel):
+    status: str
+
 @app.put("/meta/adsets/{adset_id}/status")
 def update_adset_status(adset_id: str, status_data: AdSetStatusUpdate):
     """Update the status of an ad set"""
@@ -577,6 +580,55 @@ def update_adset_status(adset_id: str, status_data: AdSetStatusUpdate):
         return {
             "status": "error", 
             "message": f"Failed to update ad set {adset_id} status: {error_message}",
+            "error_details": error_details
+        }
+
+@app.put("/meta/ads/{ad_id}/status")
+def update_ad_status(ad_id: str, status_data: AdStatusUpdate):
+    """Update the status of an ad"""
+    try:
+        # Test connection first
+        if not meta_client.test_connection():
+            return {"status": "error", "message": "Meta API connection failed"}
+        
+        status = status_data.status
+        if not status:
+            return {"status": "error", "message": "Status is required"}
+        
+        if status not in ["ACTIVE", "PAUSED", "ARCHIVED"]:
+            return {"status": "error", "message": "Invalid status. Must be ACTIVE, PAUSED, or ARCHIVED"}
+        
+        # Update the ad status
+        result = meta_client.update_ad_status(ad_id, status)
+        
+        return {
+            "status": "success",
+            "message": f"Ad {ad_id} status updated to {status}",
+            "ad_id": ad_id,
+            "new_status": status,
+            "data": result
+        }
+        
+    except Exception as e:
+        error_message = str(e)
+        error_details = str(e)
+        
+        # Extract more details from requests HTTPError
+        if isinstance(e, requests.exceptions.HTTPError) and hasattr(e, 'response'):
+            try:
+                error_response = e.response.json()
+                if 'error' in error_response:
+                    error_info = error_response['error']
+                    error_message = error_info.get('message', error_message)
+                    error_details = f"Meta API Error {error_info.get('code', '')}: {error_info.get('message', '')}"
+                    if 'error_subcode' in error_info:
+                        error_details += f" (Subcode: {error_info['error_subcode']})"
+            except:
+                error_details = e.response.text if hasattr(e.response, 'text') else error_details
+        
+        return {
+            "status": "error", 
+            "message": f"Failed to update ad {ad_id} status: {error_message}",
             "error_details": error_details
         }
 

@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import Users from './pages/Users';
 import Agents from './pages/Agents';
 import AgentDetails from './pages/AgentDetails';
+import AutomatedRules from './pages/AutomatedRules';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const token = localStorage.getItem('access_token');
@@ -33,6 +34,7 @@ const App: React.FC = () => {
                   <Route path="/agents" element={<Agents />} />
                   <Route path="/agents/:agentId" element={<AgentDetails />} />
                   <Route path="/users" element={<Users />} />
+                  <Route path="/automated-rules" element={<AutomatedRules />} />
                   <Route path="/" element={<Navigate to="/dashboard" />} />
                 </Routes>
               </ProtectedRoute>

@@ -167,6 +167,19 @@ class ApiService {
   async getAdSetDemographics(agentId: string, adsetId: string): Promise<{ data: any }> {
     return this.api.get(`/meta/demographics/${adsetId}?agent_id=${agentId}`);
   }
+
+  // Automated Rules endpoints
+  async getAutomatedRules(): Promise<{ data: any[] }> {
+    return this.api.get('/api/automated-rules/');
+  }
+
+  async getAutomatedRule(ruleId: string): Promise<{ data: any }> {
+    return this.api.get(`/api/automated-rules/${ruleId}`);
+  }
+
+  async updateAutomatedRule(ruleId: string, updates: { enabled?: boolean }): Promise<{ data: any }> {
+    return this.api.patch(`/api/automated-rules/${ruleId}`, updates);
+  }
 }
 
 export const apiService = new ApiService();

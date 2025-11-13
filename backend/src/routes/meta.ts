@@ -313,5 +313,54 @@ router.put('/adsets/:adset_id/status', authenticate, requireRoles('USER', 'ADMIN
   }
 });
 
+// Update ad status
+router.put('/ads/:ad_id/status', authenticate, requireRoles('USER', 'ADMIN'), async (req: AuthRequest, res: Response) => {
+  try {
+    const { agent_id } = req.query;
+    const { ad_id } = req.params;
+    const { status } = req.body;
+    
+    console.log('Update ad status request:', { agent_id, ad_id, status, body: req.body });
+    
+    if (!agent_id || typeof agent_id !== 'string') {
+      return res.status(400).json({ detail: 'agent_id is required' });
+    }
+    
+    if (!status || typeof status !== 'string') {
+      return res.status(400).json({ detail: 'status is required' });
+    }
+    
+    if (!['ACTIVE', 'PAUSED', 'ARCHIVED'].includes(status)) {
+      return res.status(400).json({ detail: 'Invalid status. Must be ACTIVE, PAUSED, or ARCHIVED' });
+    }
+    
+    const data = await updateAgentMetaData(agent_id, `ads/${ad_id}/status`, { status });
+    console.log('Update ad status response:', data);
+    res.json(data);
+  } catch (error: any) {
+    console.error('Update ad status error:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      response: error.response?.data,
+      status: error.response?.status
+    });
+    
+    if (error.message === 'Agent not found') {
+      return res.status(404).json({ detail: error.message });
+    }
+    if (error.message.includes('offline')) {
+      return res.status(503).json({ detail: error.message });
+    }
+    if (error.message.includes('timeout')) {
+      return res.status(504).json({ detail: error.message });
+    }
+    if (error.message.includes('connect')) {
+      return res.status(503).json({ detail: error.message });
+    }
+    return res.status(502).json({ detail: error.message || 'Failed to update ad status' });
+  }
+});
+
 export default router;
 

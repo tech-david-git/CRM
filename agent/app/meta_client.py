@@ -193,6 +193,55 @@ class MetaAPIClient:
             logger.error(f"API request failed: {e}")
             raise
 
+    def update_ad_status(self, ad_id: str, status: str) -> Dict[str, Any]:
+        """Update the status of an ad (ACTIVE, PAUSED, ARCHIVED)
+        
+        According to Meta's Marketing API documentation:
+        https://developers.facebook.com/docs/marketing-api/reference/adgroup/
+        Updates should use POST with form data, not PUT with JSON.
+        """
+        endpoint = ad_id
+        # Meta API requires form data, not JSON for updates
+        data = {
+            "status": status
+        }
+        
+        try:
+            # Meta API uses POST for updates, not PUT, and requires form data
+            # According to Meta API docs, access_token can be in query params or form data
+            url = f"{self.base_url}/{endpoint.lstrip('/')}"
+            params = {
+                "access_token": self.access_token
+            }
+            headers = {
+                "Authorization": f"Bearer {self.access_token}"
+                # Don't set Content-Type, let requests set it for form data
+            }
+            
+            # Use POST with form data (data parameter) instead of PUT with JSON
+            # Include access_token in query params as per Meta API documentation examples
+            response = requests.post(url, headers=headers, params=params, data=data, timeout=self.timeout)
+            response.raise_for_status()
+            return response.json()
+            
+        except requests.exceptions.HTTPError as e:
+            # If Meta API returns an error, log it and re-raise
+            error_msg = f"Meta API error updating ad {ad_id}: {e}"
+            if hasattr(e, 'response') and e.response:
+                try:
+                    error_data = e.response.json()
+                    if 'error' in error_data:
+                        error_info = error_data['error']
+                        error_msg = f"Meta API Error {error_info.get('code', '')}: {error_info.get('message', str(e))}"
+                        logger.error(f"{error_msg} - Full response: {error_data}")
+                except:
+                    error_msg = f"{error_msg} - Response: {e.response.text}"
+            logger.error(error_msg)
+            raise
+        except requests.exceptions.RequestException as e:
+            logger.error(f"API request failed: {e}")
+            raise
+
     def test_connection(self) -> bool:
         """Test the connection to Meta's API"""
         try:
