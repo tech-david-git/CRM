@@ -199,8 +199,14 @@ class MetaAPIClient:
         According to Meta's Marketing API documentation:
         https://developers.facebook.com/docs/marketing-api/reference/adgroup/
         Updates should use POST with form data, not PUT with JSON.
+        
+        The ad_id should be the numeric ad ID from Meta (e.g., "123456789")
         """
-        endpoint = ad_id
+        # Ensure ad_id is clean (remove any prefixes like "act_123456/ads/")
+        # Meta API expects just the numeric ad ID
+        ad_id_clean = ad_id.split('/')[-1] if '/' in ad_id else ad_id
+        
+        endpoint = ad_id_clean
         # Meta API requires form data, not JSON for updates
         data = {
             "status": status
@@ -218,28 +224,39 @@ class MetaAPIClient:
                 # Don't set Content-Type, let requests set it for form data
             }
             
+            logger.info(f"Updating ad {ad_id_clean} (original: {ad_id}) to status {status}")
+            logger.debug(f"Meta API URL: {url}")
+            
             # Use POST with form data (data parameter) instead of PUT with JSON
             # Include access_token in query params as per Meta API documentation examples
             response = requests.post(url, headers=headers, params=params, data=data, timeout=self.timeout)
             response.raise_for_status()
-            return response.json()
+            result = response.json()
+            logger.info(f"Successfully updated ad {ad_id_clean} to {status}")
+            return result
             
         except requests.exceptions.HTTPError as e:
             # If Meta API returns an error, log it and re-raise
-            error_msg = f"Meta API error updating ad {ad_id}: {e}"
+            error_msg = f"Meta API error updating ad {ad_id} (cleaned: {ad_id_clean}): {e}"
             if hasattr(e, 'response') and e.response:
                 try:
                     error_data = e.response.json()
                     if 'error' in error_data:
                         error_info = error_data['error']
                         error_msg = f"Meta API Error {error_info.get('code', '')}: {error_info.get('message', str(e))}"
+                        if 'error_subcode' in error_info:
+                            error_msg += f" (Subcode: {error_info['error_subcode']})"
                         logger.error(f"{error_msg} - Full response: {error_data}")
+                    else:
+                        logger.error(f"{error_msg} - Response: {error_data}")
                 except:
                     error_msg = f"{error_msg} - Response: {e.response.text}"
-            logger.error(error_msg)
+                    logger.error(error_msg)
+            else:
+                logger.error(error_msg)
             raise
         except requests.exceptions.RequestException as e:
-            logger.error(f"API request failed: {e}")
+            logger.error(f"API request failed for ad {ad_id}: {e}")
             raise
 
     def test_connection(self) -> bool:

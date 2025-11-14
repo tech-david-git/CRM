@@ -202,18 +202,34 @@ export async function evaluateRuleForAd(
 
 /**
  * Pause an ad via the agent
+ * Calls the agent's endpoint directly (agent doesn't require auth)
  */
 export async function pauseAd(adId: string, agentId: string): Promise<boolean> {
   try {
+    // Call agent directly - agent endpoints don't require authentication
     const response = await axios.put(
       `${config.agent.baseUrl}/meta/ads/${adId}/status`,
       { status: 'PAUSED' },
-      { timeout: 10000 }
+      { 
+        timeout: 10000,
+      }
     );
 
-    return response.data.status === 'success';
+    const success = response.data.status === 'success' || response.data.new_status === 'PAUSED';
+    
+    if (!success) {
+      console.error(`Agent returned error for ad ${adId}:`, response.data);
+    }
+    
+    return success;
   } catch (error: any) {
     console.error(`Failed to pause ad ${adId} via agent ${agentId}:`, error.message);
+    if (error.response) {
+      console.error(`Response status: ${error.response.status}`, JSON.stringify(error.response.data, null, 2));
+    }
+    if (error.code) {
+      console.error(`Error code: ${error.code}`);
+    }
     return false;
   }
 }
@@ -255,6 +271,7 @@ export async function executeAutomatedRule(rule: any): Promise<{
           console.log(
             `[AutomatedRule] Ad ${ad.id} (${ad.name}) meets conditions. Metrics: impressions=${evaluation.metrics.lifetimeImpressions}, costPerResult=${evaluation.metrics.costPerResult.toFixed(2)} EUR. Reason: ${evaluation.reason}`
           );
+          console.log(`[AutomatedRule] Attempting to pause ad ${ad.id} via agent ${agent.id} (agent URL: ${config.agent.baseUrl})`);
 
           // Pause the ad
           const paused = await pauseAd(ad.id, agent.id);
