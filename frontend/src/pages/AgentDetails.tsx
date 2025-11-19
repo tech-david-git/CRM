@@ -43,6 +43,7 @@ const AgentDetails: React.FC = () => {
   const [updatingAdSets, setUpdatingAdSets] = useState<Set<string>>(new Set());
   const [showChatbot, setShowChatbot] = useState(false);
   const [chatbotCampaign, setChatbotCampaign] = useState<MetaCampaign | null>(null);
+  const [rulesRefreshToken, setRulesRefreshToken] = useState(0);
 
   useEffect(() => {
     if (agentId) {
@@ -1085,7 +1086,11 @@ const AgentDetails: React.FC = () => {
                   </button>
                 )}
               </div>
-              <CampaignRules agentId={agent?.id || ''} campaigns={metaCampaigns} />
+              <CampaignRules
+                agentId={agent?.id || ''}
+                campaigns={metaCampaigns}
+                refreshToken={rulesRefreshToken}
+              />
             </div>
           )}
       </div>
@@ -1102,7 +1107,7 @@ const AgentDetails: React.FC = () => {
           campaignId={chatbotCampaign.id}
           campaignName={chatbotCampaign.name}
           onRuleCreated={() => {
-            // Optionally refresh data or show notification
+            setRulesRefreshToken((prev) => prev + 1);
           }}
         />
       )}
