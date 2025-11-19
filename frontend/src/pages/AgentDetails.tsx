@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
 import CampaignRules from '../components/CampaignRules';
+import AIRuleChatbot from '../components/AIRuleChatbot';
 import {
   Agent, 
   MetaAppInfo, 
@@ -40,6 +41,8 @@ const AgentDetails: React.FC = () => {
   const [loadingOptimization, setLoadingOptimization] = useState(false);
   const [targetCostPerResult, setTargetCostPerResult] = useState(50);
   const [updatingAdSets, setUpdatingAdSets] = useState<Set<string>>(new Set());
+  const [showChatbot, setShowChatbot] = useState(false);
+  const [chatbotCampaign, setChatbotCampaign] = useState<MetaCampaign | null>(null);
 
   useEffect(() => {
     if (agentId) {
@@ -699,6 +702,18 @@ const AgentDetails: React.FC = () => {
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                   Ad Sets for "{selectedCampaign.name}" ({campaignAdSets[selectedCampaign.id]?.length || 0})
               </h3>
+              <button
+                onClick={() => {
+                  setChatbotCampaign(selectedCampaign);
+                  setShowChatbot(true);
+                }}
+                className="btn btn-primary flex items-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                </svg>
+                Create Rule with AI
+              </button>
             </div>
               
               {loadingAdSets.has(selectedCampaign.id) ? (
@@ -1050,9 +1065,47 @@ const AgentDetails: React.FC = () => {
 
           {/* Rules View */}
           {currentView === 'rules' && (
-            <CampaignRules agentId={agent?.id || ''} campaigns={metaCampaigns} />
+            <div>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Campaign Rules
+                </h3>
+                {metaCampaigns.length > 0 && (
+                  <button
+                    onClick={() => {
+                      setChatbotCampaign(metaCampaigns[0]);
+                      setShowChatbot(true);
+                    }}
+                    className="btn btn-primary flex items-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                    </svg>
+                    Create Rule with AI
+                  </button>
+                )}
+              </div>
+              <CampaignRules agentId={agent?.id || ''} campaigns={metaCampaigns} />
+            </div>
           )}
       </div>
+
+      {/* AI Rule Chatbot Modal */}
+      {showChatbot && chatbotCampaign && agent && (
+        <AIRuleChatbot
+          isOpen={showChatbot}
+          onClose={() => {
+            setShowChatbot(false);
+            setChatbotCampaign(null);
+          }}
+          agentId={agent.id}
+          campaignId={chatbotCampaign.id}
+          campaignName={chatbotCampaign.name}
+          onRuleCreated={() => {
+            // Optionally refresh data or show notification
+          }}
+        />
+      )}
 
       {/* Token Display Dialog */}
       {showTokenDialog && (

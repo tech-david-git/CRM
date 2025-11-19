@@ -1,5 +1,6 @@
 import cron from 'node-cron';
-import { MetricSnapshot, DailyMetric, Agent } from '../models';
+import { MetricSnapshot, DailyMetric, Agent, AdSetRule } from '../models';
+import { executeRule } from '../utils/ruleExecutor';
 
 const RETENTION_DAYS = 90;
 
@@ -106,6 +107,26 @@ async function markOfflineAgents() {
   }
 }
 
+async function executeAutoRules() {
+  try {
+    const autoRules = await AdSetRule.find({
+      is_active: true,
+      execution_mode: 'AUTO',
+    });
+
+    for (const rule of autoRules) {
+      try {
+        await executeRule(rule);
+        console.log(`Executed auto rule: ${rule.rule_name} (${rule.id})`);
+      } catch (error: any) {
+        console.error(`Error executing auto rule ${rule.id}:`, error.message);
+      }
+    }
+  } catch (error) {
+    console.error('Error executing auto rules:', error);
+  }
+}
+
 export function startBackgroundTasks() {
   // Retention loop - run hourly
   cron.schedule('0 * * * *', async () => {
@@ -124,6 +145,11 @@ export function startBackgroundTasks() {
   // Agent status loop - run every 30 seconds
   cron.schedule('*/30 * * * * *', async () => {
     await markOfflineAgents();
+  });
+
+  // Auto rule execution - run every 5 minutes
+  cron.schedule('*/5 * * * *', async () => {
+    await executeAutoRules();
   });
 
   console.log('✅ Background tasks started');

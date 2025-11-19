@@ -76,60 +76,106 @@ export interface LoginRequest {
   password: string;
 }
 
-// Campaign Rules Types
-export interface CampaignRule {
+// Ad Set Rule Types
+export interface AdSetRule {
   id: string;
+  user_id: string;
   agent_id: string;
   campaign_id: string;
   rule_name: string;
-  rule_type: 'budget' | 'conversion_rate' | 'cost_per_result' | 'time_based';
+  description?: string;
   is_active: boolean;
-  config: Record<string, any>;
+  execution_mode: 'AUTO' | 'MANUAL';
+  filter_config: {
+    conditions: Array<{
+      field: string;
+      operator: 'equals' | 'not_equals' | 'greater_than' | 'less_than' | 'greater_than_or_equal' | 'less_than_or_equal' | 'between' | 'contains' | 'in' | 'not_in';
+      value: any;
+      value2?: any;
+    }>;
+    logical_operator?: 'AND' | 'OR';
+  };
+  action: {
+    type: 'PAUSE' | 'ACTIVATE';
+  };
   last_executed_at?: string;
   execution_count: number;
   last_action?: string;
+  last_matched_count?: number;
   created_at: string;
   updated_at: string;
 }
 
-export interface CampaignRuleCreate {
+export interface AdSetRuleCreate {
   agent_id: string;
   campaign_id: string;
   rule_name: string;
-  rule_type: 'budget' | 'conversion_rate' | 'cost_per_result' | 'time_based';
-  is_active: boolean;
-  config: Record<string, any>;
+  description?: string;
+  filter_config: {
+    conditions: Array<{
+      field: string;
+      operator: 'equals' | 'not_equals' | 'greater_than' | 'less_than' | 'greater_than_or_equal' | 'less_than_or_equal' | 'between' | 'contains' | 'in' | 'not_in';
+      value: any;
+      value2?: any;
+    }>;
+    logical_operator?: 'AND' | 'OR';
+  };
+  action: {
+    type: 'PAUSE' | 'ACTIVATE';
+  };
+  execution_mode?: 'AUTO' | 'MANUAL';
 }
 
-export interface CampaignRuleUpdate {
+export interface AdSetRuleUpdate {
   rule_name?: string;
+  description?: string;
   is_active?: boolean;
-  config?: Record<string, any>;
+  execution_mode?: 'AUTO' | 'MANUAL';
+  filter_config?: {
+    conditions: Array<{
+      field: string;
+      operator: 'equals' | 'not_equals' | 'greater_than' | 'less_than' | 'greater_than_or_equal' | 'less_than_or_equal' | 'between' | 'contains' | 'in' | 'not_in';
+      value: any;
+      value2?: any;
+    }>;
+    logical_operator?: 'AND' | 'OR';
+  };
+  action?: {
+    type: 'PAUSE' | 'ACTIVATE';
+  };
 }
 
-// Rule Configuration Types
-export interface BudgetRuleConfig {
-  daily_budget_limit: number;
-  action: 'pause' | 'reduce_budget' | 'notify';
-  reduce_by_percent?: number;
+export interface RulePreview {
+  total_ad_sets: number;
+  matching_ad_sets: number;
+  matched_ad_sets: Array<{
+    id: string;
+    name: string;
+    status: string;
+    effective_status: string;
+    daily_budget?: number;
+    lifetime_budget?: number;
+  }>;
 }
 
-export interface ConversionRateRuleConfig {
-  min_conversion_rate: number;
-  min_impressions: number;
-  action: 'pause' | 'notify';
-}
-
-export interface CostPerResultRuleConfig {
-  max_cost_per_result: number;
-  min_conversions: number;
-  action: 'pause' | 'notify';
-}
-
-export interface TimeBasedRuleConfig {
-  pause_hours: number[];
-  pause_days: number[];
-  timezone: string;
+export interface GeneratedRule {
+  rule_name: string;
+  description?: string;
+  filter_config: {
+    conditions: Array<{
+      field: string;
+      operator: 'equals' | 'not_equals' | 'greater_than' | 'less_than' | 'greater_than_or_equal' | 'less_than_or_equal' | 'between' | 'contains' | 'in' | 'not_in';
+      value: any;
+      value2?: any;
+    }>;
+    logical_operator?: 'AND' | 'OR';
+  };
+  action: {
+    type: 'PAUSE' | 'ACTIVATE';
+  };
+  explanation?: string;
+  agent_id: string;
+  campaign_id: string;
 }
 
 // Meta API Types

@@ -8,6 +8,11 @@ import {
   Command, 
   PasswordResetRequest,
   PasswordResetConfirm,
+  AdSetRule,
+  AdSetRuleCreate,
+  AdSetRuleUpdate,
+  RulePreview,
+  GeneratedRule,
 } from '../types';
 
 class ApiService {
@@ -166,6 +171,50 @@ class ApiService {
 
   async getAdSetDemographics(agentId: string, adsetId: string): Promise<{ data: any }> {
     return this.api.get(`/meta/demographics/${adsetId}?agent_id=${agentId}`);
+  }
+
+  // Ad Set Rules endpoints
+  async getAdSetRules(agentId?: string, campaignId?: string): Promise<{ data: AdSetRule[] }> {
+    const params: any = {};
+    if (agentId) params.agent_id = agentId;
+    if (campaignId) params.campaign_id = campaignId;
+    return this.api.get('/api/ad-set-rules/', { params });
+  }
+
+  async getAdSetRule(ruleId: string): Promise<{ data: AdSetRule }> {
+    return this.api.get(`/api/ad-set-rules/${ruleId}`);
+  }
+
+  async generateRule(naturalLanguage: string, agentId: string, campaignId: string): Promise<{ data: GeneratedRule }> {
+    return this.api.post('/api/ad-set-rules/generate', {
+      natural_language: naturalLanguage,
+      agent_id: agentId,
+      campaign_id: campaignId,
+    });
+  }
+
+  async previewRule(agentId: string, campaignId: string, filterConfig: any): Promise<{ data: RulePreview }> {
+    return this.api.post('/api/ad-set-rules/preview', {
+      agent_id: agentId,
+      campaign_id: campaignId,
+      filter_config: filterConfig,
+    });
+  }
+
+  async createAdSetRule(rule: AdSetRuleCreate): Promise<{ data: AdSetRule }> {
+    return this.api.post('/api/ad-set-rules/', rule);
+  }
+
+  async updateAdSetRule(ruleId: string, rule: AdSetRuleUpdate): Promise<{ data: AdSetRule }> {
+    return this.api.put(`/api/ad-set-rules/${ruleId}`, rule);
+  }
+
+  async deleteAdSetRule(ruleId: string): Promise<void> {
+    return this.api.delete(`/api/ad-set-rules/${ruleId}`);
+  }
+
+  async executeRule(ruleId: string): Promise<{ data: any }> {
+    return this.api.post(`/api/ad-set-rules/${ruleId}/execute`);
   }
 }
 

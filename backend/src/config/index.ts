@@ -28,5 +28,8 @@ export const config = {
   agent: {
     baseUrl: process.env.AGENT_BASE_URL || 'http://localhost:9000',
   },
+  openai: {
+    apiKey: process.env.OPENAI_API_KEY || '',
+  },
 };
 
